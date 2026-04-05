@@ -433,6 +433,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
   const [nc, setNc] = useState(initNpCarry);
   const [gs, setGs] = useState(initGsRate);
   const [hc, setHc] = useState([...initHc]);
+  const [hcStr, setHcStr] = useState(initHc.map((v) => v === 0 ? "" : String(v)));
   const [hhp, setHhp] = useState(initHhp);
   const [htp, setHtp] = useState(initHtp);
   const [vo, setVo] = useState({ ...vegOpts });
@@ -597,12 +598,13 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
       {/* Handicap Match */}
       <div style={S.card}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 12, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
-        <div style={{ fontSize: 11, color: C.mut, marginBottom: 10, lineHeight: 1.5 }}>各プレイヤーのハンデを設定。ペア間の差で自動計算。</div>
+        <div style={{ fontSize: 11, color: C.mut, marginBottom: 10, lineHeight: 1.5 }}>自分は0（基準）。相手のハンデを入力。マイナスは貰う側。</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
           {p.map((name, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 12, color: C.dim, width: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name || `P${i + 1}`}</span>
-              <input type="number" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 60, padding: "6px 8px", fontSize: 14, textAlign: "center" }} value={hc[i] || ""} onChange={(e) => { const nh = [...hc]; nh[i] = parseInt(e.target.value) || 0; setHc(nh); }} />
+              <input type="text" inputMode="numeric" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 60, padding: "6px 8px", fontSize: 14, textAlign: "center" }} value={hcStr[i]} onChange={(e) => { const v = e.target.value; if (v !== "" && v !== "-" && isNaN(parseInt(v))) return; const ns = [...hcStr]; ns[i] = v; setHcStr(ns); const n = parseInt(v); if (!isNaN(n)) { const nh = [...hc]; nh[i] = n; setHc(nh); } else if (v === "") { const nh = [...hc]; nh[i] = 0; setHc(nh); } }} placeholder="0" />
+              {hc[i] === 0 && <span style={{ fontSize: 10, color: C.gold }}>基準</span>}
             </div>
           ))}
         </div>
