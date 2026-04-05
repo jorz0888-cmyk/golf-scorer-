@@ -685,17 +685,38 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
         })}
 
         <div style={{ ...S.card, background: "#0d2015" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.goldL, marginBottom: 12, letterSpacing: 1 }}>ラスベガス 累計 ({half === 0 ? "OUT" : "IN"})</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.goldL, marginBottom: 12, letterSpacing: 1 }}>ラスベガス 個人累計</div>
           {(() => {
-            const last = [...vCum].slice(hs, hs + 9).reverse().find((r) => r && !r.pushed);
-            const prev = vCum.slice(0, hs).reverse().find((r) => r && !r.pushed);
-            const s0 = prev ? prev.cum : 0;
-            const s1 = last ? last.cum : s0;
-            const hd = s1 - s0;
+            // Calculate per-person cumulative points
+            const allPts = [0, 0, 0, 0];
+            const halfPts = [0, 0, 0, 0];
+            for (let h = 0; h < 18; h++) {
+              const r = vCum[h];
+              if (!r || r.pushed) continue;
+              const d = r.rounded;
+              if (vo.simpleCalc) {
+                const winTeam = d < 0 ? r.tA : r.tB;
+                const mult = Math.abs(d);
+                winTeam.forEach((pi) => { allPts[pi] += mult; if (h >= hs && h < hs + 9) halfPts[pi] += mult; });
+              } else {
+                r.tA.forEach((pi) => { allPts[pi] -= d; if (h >= hs && h < hs + 9) halfPts[pi] -= d; });
+                r.tB.forEach((pi) => { allPts[pi] += d; if (h >= hs && h < hs + 9) halfPts[pi] += d; });
+              }
+            }
             return (
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, fontSize: 18, fontWeight: 700 }}>
-                <span style={{ color: hd <= 0 ? C.ok : C.red }}>{hd > 0 ? "A+" : hd < 0 ? "B+" : "±"}{Math.abs(hd)}</span>
-                <span style={{ fontSize: 13, color: C.dim }}>(通算: {s1 > 0 ? "A+" : s1 < 0 ? "B+" : "±"}{Math.abs(s1)})</span>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
+                {players.map((n, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 10, color: C.dim, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: halfPts[i] > 0 ? C.ok : halfPts[i] < 0 ? C.red : C.dim }}>
+                      {vo.simpleCalc ? halfPts[i] : (halfPts[i] > 0 ? "+" : "") + halfPts[i]}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.mut }}>{half === 0 ? "OUT" : "IN"}</div>
+                    <div style={{ fontSize: 11, color: C.mut, marginTop: 2 }}>
+                      通算: {vo.simpleCalc ? allPts[i] : (allPts[i] > 0 ? "+" : "") + allPts[i]}
+                    </div>
+                  </div>
+                ))}
               </div>
             );
           })()}
