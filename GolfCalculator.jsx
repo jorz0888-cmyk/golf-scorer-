@@ -543,7 +543,10 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
       <HandicapMemo />
 
       <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
-        <button style={{ ...S.btn, opacity: ok ? 1 : 0.4 }} disabled={!ok} onClick={() => onStart(p, r, or2, nr, nc, gs, vo, coursePars)}>スタート ⛳</button>
+        <button style={{ ...S.btn, opacity: ok ? 1 : 0.4 }} disabled={!ok} onClick={() => {
+          if (hasData && !confirm("前回のデータは削除されますが宜しいですか？")) return;
+          onStart(p, r, or2, nr, nc, gs, vo, coursePars);
+        }}>スタート ⛳</button>
         {hasData && <button style={S.btnO} onClick={onResume}>前回のデータを再開</button>}
       </div>
     </div>
