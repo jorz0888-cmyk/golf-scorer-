@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 
 const INITIAL_STATE = {
   screen: "setup",
@@ -856,7 +856,7 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
               </thead>
               <tbody>
                 {[0, 9].map((st, si) => (
-                  <React.Fragment key={si}>
+                  <Fragment key={si}>
                     {Array.from({ length: 9 }, (_, i) => {
                       const h = st + i;
                       const sc = scores[h];
@@ -878,7 +878,7 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
                       );
                     })}
                     {st === 0 && <tr key="mid"><td colSpan={8} style={{ padding: 4, fontSize: 10, color: C.mut, textAlign: "center", borderBottom: `2px solid ${C.brd}` }}>— ハーフ —</td></tr>}
-                  </React.Fragment>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -898,7 +898,7 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
               </thead>
               <tbody>
                 {[0, 9].map((st, si) => (
-                  <React.Fragment key={si}>
+                  <Fragment key={si}>
                     {Array.from({ length: 9 }, (_, i) => {
                       const h = st + i;
                       return (
@@ -913,7 +913,7 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
                       );
                     })}
                     {st === 0 && <tr key="m2"><td colSpan={5} style={{ padding: 4, fontSize: 10, color: C.mut, textAlign: "center", borderBottom: `2px solid ${C.brd}` }}>— ハーフ —</td></tr>}
-                  </React.Fragment>
+                  </Fragment>
                 ))}
                 <tr style={{ borderTop: `2px solid ${C.brd}` }}>
                   <td style={{ padding: "8px 4px", fontWeight: 700, color: C.gold }}>計</td>
