@@ -483,7 +483,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
           <div style={{ fontSize: 12, color: C.goldL, marginBottom: 6, fontWeight: 500 }}>🎰 ラスベガス</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 14, color: C.dim }}>1点 =</span>
-            <input type="number" step="100" style={{ ...S.inp, width: 100 }} value={r} onChange={(e) => setR(parseInt(e.target.value) || 0)} />
+            <input type="number" step="100" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 100 }} value={r} onChange={(e) => setR(parseInt(e.target.value) || 0)} />
             <span style={{ fontSize: 14, color: C.dim }}>ポイント</span>
           </div>
         </div>
@@ -491,7 +491,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
           <div style={{ fontSize: 12, color: C.goldL, marginBottom: 6, fontWeight: 500 }}>🏅 オリンピック</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 14, color: C.dim }}>1点 =</span>
-            <input type="number" step="100" style={{ ...S.inp, width: 100 }} value={or2} onChange={(e) => setOr(parseInt(e.target.value) || 0)} />
+            <input type="number" step="100" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 100 }} value={or2} onChange={(e) => setOr(parseInt(e.target.value) || 0)} />
             <span style={{ fontSize: 14, color: C.dim }}>ポイント</span>
           </div>
         </div>
@@ -499,7 +499,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
           <div style={{ fontSize: 12, color: C.goldL, marginBottom: 6, fontWeight: 500 }}>🎯 ニアピン</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 14, color: C.dim }}>1回 =</span>
-            <input type="number" step="100" style={{ ...S.inp, width: 100 }} value={nr} onChange={(e) => setNr(parseInt(e.target.value) || 0)} />
+            <input type="number" step="100" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 100 }} value={nr} onChange={(e) => setNr(parseInt(e.target.value) || 0)} />
             <span style={{ fontSize: 14, color: C.dim }}>ポイント</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
@@ -512,7 +512,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
           <div style={{ fontSize: 11, color: C.mut, marginBottom: 6 }}>オリンピック全種類(💎🥇🥈🥉🔩)達成ボーナス</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 14, color: C.dim }}>達成 =</span>
-            <input type="number" step="100" style={{ ...S.inp, width: 100 }} value={gs} onChange={(e) => setGs(parseInt(e.target.value) || 0)} />
+            <input type="number" step="100" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 100 }} value={gs} onChange={(e) => setGs(parseInt(e.target.value) || 0)} />
             <span style={{ fontSize: 14, color: C.dim }}>ポイント</span>
           </div>
         </div>
@@ -650,7 +650,7 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
                 {order.map((pi) => (
                   <div key={pi}>
                     <div style={{ fontSize: 10, color: tA.includes(pi) ? C.goldL : C.blue, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{players[pi]}</div>
-                    <input type="number" inputMode="numeric" style={S.sInp} value={scores[h][pi] || ""} onChange={(e) => { const v = parseInt(e.target.value) || 0; onScore(h, pi, Math.max(0, Math.min(20, v))); }} />
+                    <input type="number" inputMode="numeric" onFocus={(e) => e.target.select()} style={S.sInp} value={scores[h][pi] || ""} onChange={(e) => { const v = parseInt(e.target.value) || 0; onScore(h, pi, Math.max(0, Math.min(20, v))); }} />
                   </div>
                 ))}
               </div>
