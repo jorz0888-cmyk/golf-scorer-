@@ -598,13 +598,17 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
       {/* Handicap Match */}
       <div style={S.card}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 12, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
-        <div style={{ fontSize: 11, color: C.mut, marginBottom: 10, lineHeight: 1.5 }}>自分は0（基準）。相手のハンデを入力。マイナスは貰う側。</div>
+        <div style={{ fontSize: 11, color: C.mut, marginBottom: 10, lineHeight: 1.5 }}>自分は0（基準）。＋は相手にあげる、−は貰う。</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
           {p.map((name, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 12, color: C.dim, width: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name || `P${i + 1}`}</span>
-              <input type="text" inputMode="numeric" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 60, padding: "6px 8px", fontSize: 14, textAlign: "center" }} value={hcStr[i]} onChange={(e) => { const v = e.target.value; if (v !== "" && v !== "-" && isNaN(parseInt(v))) return; const ns = [...hcStr]; ns[i] = v; setHcStr(ns); const n = parseInt(v); if (!isNaN(n)) { const nh = [...hc]; nh[i] = n; setHc(nh); } else if (v === "") { const nh = [...hc]; nh[i] = 0; setHc(nh); } }} placeholder="0" />
-              {hc[i] === 0 && <span style={{ fontSize: 10, color: C.gold }}>基準</span>}
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 12, color: C.dim, width: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}>{name || `P${i + 1}`}</span>
+              <button onClick={() => { const nh = [...hc]; nh[i]--; setHc(nh); const ns = [...hcStr]; ns[i] = String(nh[i]); setHcStr(ns); }}
+                style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>−</button>
+              <div style={{ width: 36, textAlign: "center", fontSize: 16, fontWeight: 700, color: hc[i] > 0 ? C.ok : hc[i] < 0 ? C.red : C.dim }}>{hc[i]}</div>
+              <button onClick={() => { const nh = [...hc]; nh[i]++; setHc(nh); const ns = [...hcStr]; ns[i] = String(nh[i]); setHcStr(ns); }}
+                style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>＋</button>
+              {hc[i] === 0 && <span style={{ fontSize: 9, color: C.gold, flexShrink: 0 }}>基準</span>}
             </div>
           ))}
         </div>
