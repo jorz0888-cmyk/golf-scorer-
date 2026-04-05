@@ -602,18 +602,20 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
 
           return (
             <div key={h} style={{ ...S.card, padding: "12px 14px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, minHeight: 28 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ ...S.tag, background: C.gold, color: C.bg, fontSize: 13, fontWeight: 700, padding: "4px 10px" }}>{h + 1}</span>
                   <ParBtn par={pars[h]} onClick={() => onPar(h)} />
                 </div>
-                {r && !r.pushed && (
-                  <div style={{ fontSize: 13, fontWeight: 700, color: r.rounded < 0 ? C.ok : r.rounded > 0 ? C.red : C.dim }}>
-                    {r.sA} vs {r.sB}
-                    <span style={{ marginLeft: 8, fontSize: 12 }}>({r.rounded > 0 ? "+" : ""}{-r.rounded})</span>
-                  </div>
-                )}
-                {r && r.pushed && <span style={{ ...S.tag, background: "#553a00", color: C.goldL, fontSize: 11 }}>PUSH</span>}
+                <div style={{ fontSize: 13, fontWeight: 700, minWidth: 80, textAlign: "right" }}>
+                  {r && !r.pushed && (
+                    <span style={{ color: r.rounded < 0 ? C.ok : r.rounded > 0 ? C.red : C.dim }}>
+                      {r.sA} vs {r.sB}
+                      <span style={{ marginLeft: 8, fontSize: 12 }}>({r.rounded > 0 ? "+" : ""}{-r.rounded})</span>
+                    </span>
+                  )}
+                  {r && r.pushed && <span style={{ ...S.tag, background: "#553a00", color: C.goldL, fontSize: 11 }}>PUSH</span>}
+                </div>
               </div>
 
               {!vo.fixedPairs && (
