@@ -8,6 +8,9 @@ const INITIAL_STATE = {
   npRate: 100,
   npCarry: false,
   gsRate: 0,
+  handicaps: [0, 0, 0, 0],
+  hcHalfPt: 0,
+  hcTotalPt: 0,
   vegasOptions: { cap9: false, birdieReverse: false, fixedPairs: false, push: false, simpleCalc: false, headTie: false },
   scores: Array.from({ length: 18 }, () => [0, 0, 0, 0]),
   pars: Array.from({ length: 18 }, () => 4),
@@ -34,6 +37,9 @@ function loadState() {
       if (!p.npRate) p.npRate = 100;
       if (p.npCarry === undefined) p.npCarry = false;
       if (p.gsRate === undefined) p.gsRate = 0;
+      if (!p.handicaps) p.handicaps = [0, 0, 0, 0];
+      if (p.hcHalfPt === undefined) p.hcHalfPt = 0;
+      if (p.hcTotalPt === undefined) p.hcTotalPt = 0;
       if (!p.nearpin) p.nearpin = Array.from({ length: 18 }, () => -1);
       return p;
     }
@@ -62,7 +68,7 @@ export default function GolfCalculator() {
   useEffect(() => { saveState(state); }, [state]);
   const up = useCallback((patch) => setState((p) => ({ ...p, ...patch })), []);
 
-  const { screen, players, rate, oRate, npRate, npCarry, gsRate, vegasOptions: vo, scores, pars, teeOrders, nearpin, olympic } = state;
+  const { screen, players, rate, oRate, npRate, npCarry, gsRate, handicaps, hcHalfPt, hcTotalPt, vegasOptions: vo, scores, pars, teeOrders, nearpin, olympic } = state;
 
   // --- Par ---
   function cyclePar(hole) {
@@ -244,21 +250,67 @@ export default function GolfCalculator() {
       winTeam.forEach((pi) => { npPay[pi] += npRate * mult; });
       loseTeam.forEach((pi) => { npPay[pi] -= npRate * mult; });
     }
+    // Handicap match: pairwise comparison with handicap applied
+    const hcMatches = [];
+    const hcPay = [0, 0, 0, 0];
+    if (hcHalfPt > 0 || hcTotalPt > 0) {
+      // Calculate per-player scores
+      const pScores = players.map((_, pi) => {
+        let out = 0, inn = 0, outC = 0, inC = 0;
+        for (let h = 0; h < 9; h++) { if (scores[h][pi] > 0) { out += scores[h][pi]; outC++; } }
+        for (let h = 9; h < 18; h++) { if (scores[h][pi] > 0) { inn += scores[h][pi]; inC++; } }
+        return { out, inn, total: out + inn, outC, inC };
+      });
+      for (let i = 0; i < 4; i++)
+        for (let j = i + 1; j < 4; j++) {
+          const hcDiff = handicaps[i] - handicaps[j]; // positive = i has higher hc = i gets strokes
+          const m = { p1: i, p2: j, hcDiff, results: [] };
+          // OUT
+          if (pScores[i].outC > 0 && pScores[j].outC > 0) {
+            const rawDiff = pScores[i].out - pScores[j].out; // positive = i scored more = i worse
+            const adjDiff = rawDiff - hcDiff; // subtract handicap advantage
+            m.results.push({ label: "OUT", diff: adjDiff, winner: adjDiff < 0 ? i : adjDiff > 0 ? j : -1 });
+          }
+          // IN
+          if (pScores[i].inC > 0 && pScores[j].inC > 0) {
+            const rawDiff = pScores[i].inn - pScores[j].inn;
+            const adjDiff = rawDiff - hcDiff;
+            m.results.push({ label: "IN", diff: adjDiff, winner: adjDiff < 0 ? i : adjDiff > 0 ? j : -1 });
+          }
+          // Total
+          if (pScores[i].outC + pScores[i].inC > 0 && pScores[j].outC + pScores[j].inC > 0) {
+            const rawDiff = pScores[i].total - pScores[j].total;
+            const adjDiff = rawDiff - hcDiff;
+            m.results.push({ label: "トータル", diff: adjDiff, winner: adjDiff < 0 ? i : adjDiff > 0 ? j : -1 });
+          }
+          hcMatches.push(m);
+          // Calculate payments
+          m.results.forEach((r) => {
+            const pt = r.label === "トータル" ? hcTotalPt : hcHalfPt;
+            if (r.winner >= 0 && pt > 0) {
+              hcPay[r.winner] += pt;
+              const loser = r.winner === i ? j : i;
+              hcPay[loser] -= pt;
+            }
+          });
+        }
+    }
     const tot = players.map((_, i) => {
       const v = Math.ceil(vPay[i]);
       let o = 0;
       oS.forEach((x) => { if (x.to === i) o += x.amt; if (x.from === i) o -= x.amt; });
       const np = npPay[i];
       const gs = gsPay[i];
-      return { v, o: Math.ceil(o), np, gs, t: Math.ceil(v + o + np + gs) };
+      const hc = hcPay[i];
+      return { v, o: Math.ceil(o), np, gs, hc, t: Math.ceil(v + o + np + gs + hc) };
     });
-    return { oP, oS, npCount, vSettlements, vPts, gsAchieved, tot };
+    return { oP, oS, npCount, vSettlements, vPts, gsAchieved, hcMatches, tot };
   }
 
   if (screen === "setup")
-    return <Setup players={players} rate={rate} oRate={oRate} npRate={npRate} npCarry={npCarry} gsRate={gsRate} pars={pars} vo={vo}
-      onStart={(p, r, or2, nr, nc, gs, v, coursePars) => up({
-        players: p, rate: r, oRate: or2, npRate: nr, npCarry: nc, gsRate: gs, vegasOptions: v, screen: "play",
+    return <Setup players={players} rate={rate} oRate={oRate} npRate={npRate} npCarry={npCarry} gsRate={gsRate} handicaps={handicaps} hcHalfPt={hcHalfPt} hcTotalPt={hcTotalPt} pars={pars} vo={vo}
+      onStart={(p, r, or2, nr, nc, gs, hc, hhp, htp, v, coursePars) => up({
+        players: p, rate: r, oRate: or2, npRate: nr, npCarry: nc, gsRate: gs, handicaps: hc, hcHalfPt: hhp, hcTotalPt: htp, vegasOptions: v, screen: "play",
         scores: Array.from({ length: 18 }, () => [0, 0, 0, 0]),
         pars: coursePars,
         teeOrders: Array.from({ length: 18 }, () => [0, 1, 2, 3]),
@@ -271,7 +323,7 @@ export default function GolfCalculator() {
       hasData={scores.some((h) => h.some((s2) => s2 > 0))} />;
 
   if (screen === "settle")
-    return <Settle players={players} rate={rate} oRate={oRate} npRate={npRate} gsRate={gsRate} nearpin={nearpin} settlement={calcSettle()} personal={personalScores()} pars={pars}
+    return <Settle players={players} rate={rate} oRate={oRate} npRate={npRate} gsRate={gsRate} handicaps={handicaps} hcHalfPt={hcHalfPt} hcTotalPt={hcTotalPt} nearpin={nearpin} settlement={calcSettle()} personal={personalScores()} pars={pars}
       onBack={() => up({ screen: "play" })}
       onReset={() => { localStorage.removeItem("golf-calc-v4"); setState(INITIAL_STATE); }} />;
 
@@ -373,13 +425,16 @@ function HandicapMemo() {
 }
 
 /* ======== SETUP ======== */
-function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: initGsRate, pars: initPars, vo: vegOpts, onStart, onResume, hasData }) {
+function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: initGsRate, handicaps: initHc, hcHalfPt: initHhp, hcTotalPt: initHtp, pars: initPars, vo: vegOpts, onStart, onResume, hasData }) {
   const [p, setP] = useState([...players]);
   const [r, setR] = useState(rate);
   const [or2, setOr] = useState(oRate);
   const [nr, setNr] = useState(npRate);
   const [nc, setNc] = useState(initNpCarry);
   const [gs, setGs] = useState(initGsRate);
+  const [hc, setHc] = useState([...initHc]);
+  const [hhp, setHhp] = useState(initHhp);
+  const [htp, setHtp] = useState(initHtp);
   const [vo, setVo] = useState({ ...vegOpts });
   const [coursePars, setCoursePars] = useState([...initPars]);
   const [courses, setCourses] = useState(() => loadCourses());
@@ -539,13 +594,41 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
         ))}
       </div>
 
+      {/* Handicap Match */}
+      <div style={S.card}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 12, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
+        <div style={{ fontSize: 11, color: C.mut, marginBottom: 10, lineHeight: 1.5 }}>各プレイヤーのハンデを設定。ペア間の差で自動計算。</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+          {p.map((name, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 12, color: C.dim, width: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name || `P${i + 1}`}</span>
+              <input type="number" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 60, padding: "6px 8px", fontSize: 14, textAlign: "center" }} value={hc[i] || ""} onChange={(e) => { const nh = [...hc]; nh[i] = parseInt(e.target.value) || 0; setHc(nh); }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, color: C.dim }}>ハーフ勝ち =</span>
+            <input type="number" step="100" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 80, padding: "6px 8px" }} value={hhp || ""} onChange={(e) => setHhp(parseInt(e.target.value) || 0)} />
+            <span style={{ fontSize: 13, color: C.dim }}>pt</span>
+          </div>
+        </div>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, color: C.dim }}>トータル勝ち =</span>
+            <input type="number" step="100" onFocus={(e) => e.target.select()} style={{ ...S.inp, width: 80, padding: "6px 8px" }} value={htp || ""} onChange={(e) => setHtp(parseInt(e.target.value) || 0)} />
+            <span style={{ fontSize: 13, color: C.dim }}>pt</span>
+          </div>
+        </div>
+      </div>
+
       {/* Handicap Memo */}
       <HandicapMemo />
 
       <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
         <button style={{ ...S.btn, opacity: ok ? 1 : 0.4 }} disabled={!ok} onClick={() => {
           if (hasData && !confirm("前回のデータは削除されますが宜しいですか？")) return;
-          onStart(p, r, or2, nr, nc, gs, vo, coursePars);
+          onStart(p, r, or2, nr, nc, gs, hc, hhp, htp, vo, coursePars);
         }}>スタート ⛳</button>
         {hasData && <button style={S.btnO} onClick={onResume}>前回のデータを再開</button>}
       </div>
@@ -955,8 +1038,8 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
 }
 
 /* ======== SETTLE ======== */
-function Settle({ players, rate, oRate, npRate, gsRate, nearpin, settlement, personal, pars, onBack, onReset }) {
-  const { oP, oS, npCount, vSettlements, vPts, gsAchieved, tot } = settlement;
+function Settle({ players, rate, oRate, npRate, gsRate, handicaps, hcHalfPt, hcTotalPt, nearpin, settlement, personal, pars, onBack, onReset }) {
+  const { oP, oS, npCount, vSettlements, vPts, gsAchieved, hcMatches, tot } = settlement;
   const totalPar = pars.reduce((a, b) => a + b, 0);
   return (
     <div style={S.wrap}>
@@ -1080,6 +1163,46 @@ function Settle({ players, rate, oRate, npRate, gsRate, nearpin, settlement, per
         </div>
       )}
 
+      {/* Handicap Match */}
+      {hcMatches.length > 0 && (hcHalfPt > 0 || hcTotalPt > 0) && (
+        <div style={S.card}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 12, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
+          <div style={{ fontSize: 11, color: C.mut, marginBottom: 10 }}>ハーフ勝ち={hcHalfPt.toLocaleString()}pt　トータル勝ち={hcTotalPt.toLocaleString()}pt</div>
+          {hcMatches.map((m, mi) => {
+            const hasResults = m.results.length > 0;
+            if (!hasResults) return null;
+            return (
+              <div key={mi} style={{ padding: "8px 0", borderBottom: mi < hcMatches.length - 1 ? `1px solid ${C.brd}22` : "none" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{players[m.p1]} vs {players[m.p2]}</span>
+                  <span style={{ fontSize: 11, color: C.mut }}>ハンデ差 {Math.abs(m.hcDiff) || 0}{m.hcDiff !== 0 ? ` (${players[m.hcDiff > 0 ? m.p1 : m.p2]}に${Math.abs(m.hcDiff)}枚)` : ""}</span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {m.results.map((r2, ri) => (
+                    <div key={ri} style={{ flex: 1, textAlign: "center", padding: "4px", borderRadius: 6, background: `${C.alt}80`, fontSize: 11 }}>
+                      <div style={{ color: C.mut, marginBottom: 2 }}>{r2.label}</div>
+                      <div style={{ fontWeight: 700, color: r2.winner === -1 ? C.dim : C.ok }}>
+                        {r2.winner === -1 ? "引分" : `${players[r2.winner]}勝ち`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ borderTop: `1px solid ${C.brd}`, paddingTop: 10, marginTop: 8 }}>
+            {players.map((n, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", fontSize: 13 }}>
+                <span>{n}</span>
+                <span style={{ fontWeight: 700, color: tot[i].hc > 0 ? C.ok : tot[i].hc < 0 ? C.red : C.dim }}>
+                  {tot[i].hc > 0 ? "+" : ""}{tot[i].hc.toLocaleString()}pt
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ ...S.card, background: "#0d2015", border: `1px solid ${C.gold}40` }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: C.goldL, marginBottom: 12, letterSpacing: 1 }}>💰 最終収支</div>
         <div style={{ fontSize: 12, color: C.mut, marginBottom: 12 }}>🎰 1点={rate.toLocaleString()}pt　🏅 1点={oRate.toLocaleString()}pt　🎯 1回={npRate.toLocaleString()}pt{gsRate > 0 ? `　🏆 ${gsRate.toLocaleString()}pt` : ""}</div>
@@ -1088,7 +1211,7 @@ function Settle({ players, rate, oRate, npRate, gsRate, nearpin, settlement, per
             <div>
               <span style={{ fontSize: 15, fontWeight: 500 }}>{n}</span>
               <div style={{ fontSize: 10, color: C.mut, marginTop: 2 }}>
-                V: {tot[i].v > 0 ? "+" : ""}{tot[i].v.toLocaleString()}{"　"}O: {tot[i].o > 0 ? "+" : ""}{tot[i].o.toLocaleString()}{tot[i].np !== 0 ? `　N: ${tot[i].np > 0 ? "+" : ""}${tot[i].np.toLocaleString()}` : ""}{tot[i].gs !== 0 ? `　G: ${tot[i].gs > 0 ? "+" : ""}${tot[i].gs.toLocaleString()}` : ""}
+                V: {tot[i].v > 0 ? "+" : ""}{tot[i].v.toLocaleString()}{"　"}O: {tot[i].o > 0 ? "+" : ""}{tot[i].o.toLocaleString()}{tot[i].np !== 0 ? `　N: ${tot[i].np > 0 ? "+" : ""}${tot[i].np.toLocaleString()}` : ""}{tot[i].gs !== 0 ? `　G: ${tot[i].gs > 0 ? "+" : ""}${tot[i].gs.toLocaleString()}` : ""}{tot[i].hc !== 0 ? `　H: ${tot[i].hc > 0 ? "+" : ""}${tot[i].hc.toLocaleString()}` : ""}
               </div>
             </div>
             <span style={{ fontSize: 22, fontWeight: 700, color: tot[i].t > 0 ? C.ok : tot[i].t < 0 ? C.red : C.dim }}>
