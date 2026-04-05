@@ -75,12 +75,14 @@ export default function GolfCalculator() {
   function handleScore(hole, pi, val) {
     const ns = scores.map((h, i) => i === hole ? h.map((s2, j) => j === pi ? val : s2) : [...h]);
     const no = teeOrders.map((o) => [...o]);
-    for (let h = 0; h < 17; h++) {
+    for (let h = 0; h < 18; h++) {
       const sc = ns[h];
-      if (sc.some((v) => v === 0)) break;
+      if (sc.some((v) => v === 0)) continue;
       const cur = no[h];
       const sorted = [...Array(4).keys()].sort((a, b) => sc[a] !== sc[b] ? sc[a] - sc[b] : cur.indexOf(a) - cur.indexOf(b));
-      if (ns[h + 1].every((v) => v === 0)) no[h + 1] = sorted;
+      // Next hole: 17→0 (IN→OUT wrap), otherwise h+1
+      const next = h === 17 ? 0 : h + 1;
+      if (ns[next].every((v) => v === 0)) no[next] = sorted;
     }
     up({ scores: ns, teeOrders: no });
   }
