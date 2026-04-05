@@ -73,6 +73,7 @@ export default function GolfCalculator() {
 
   // --- Tee Order ---
   function handleScore(hole, pi, val) {
+    const scrollY = window.scrollY;
     const ns = scores.map((h, i) => i === hole ? h.map((s2, j) => j === pi ? val : s2) : [...h]);
     const no = teeOrders.map((o) => [...o]);
     for (let h = 0; h < 18; h++) {
@@ -85,6 +86,7 @@ export default function GolfCalculator() {
       if (ns[next].every((v) => v === 0)) no[next] = sorted;
     }
     up({ scores: ns, teeOrders: no });
+    requestAnimationFrame(() => window.scrollTo(0, scrollY));
   }
 
   function swapTee(hole, i1, i2) {
@@ -303,7 +305,7 @@ const C = {
 const S = {
   wrap: { minHeight: "100vh", background: `linear-gradient(180deg,${C.bg} 0%,#0d2812 50%,${C.bg} 100%)`, color: C.txt, fontFamily: "'Helvetica Neue','Hiragino Sans','Yu Gothic',sans-serif", maxWidth: 480, margin: "0 auto", paddingBottom: 100 },
   hdr: { background: `linear-gradient(135deg,${C.card} 0%,#0d2812 100%)`, borderBottom: `1px solid ${C.brd}`, padding: "20px 16px 16px", textAlign: "center" },
-  card: { background: C.card, border: `1px solid ${C.brd}`, borderRadius: 12, margin: "12px", padding: 16 },
+  card: { background: C.card, border: `1px solid ${C.brd}`, borderRadius: 12, margin: "12px", padding: 16, contain: "content" },
   inp: { width: "100%", background: C.alt, border: `1px solid ${C.brd}`, borderRadius: 8, color: C.txt, padding: "10px 12px", fontSize: 15, outline: "none", boxSizing: "border-box" },
   btn: { background: `linear-gradient(135deg,${C.gold},${C.goldD})`, color: C.bg, border: "none", borderRadius: 10, padding: "14px 24px", fontSize: 16, fontWeight: 700, cursor: "pointer", width: "100%", letterSpacing: 1 },
   btnO: { background: "transparent", color: C.gold, border: `1px solid ${C.gold}`, borderRadius: 10, padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%" },
