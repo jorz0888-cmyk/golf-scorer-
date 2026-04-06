@@ -81,8 +81,6 @@ export default function GolfCalculator() {
 
   // --- Tee Order ---
   function handleScore(hole, pi, val) {
-    const el = document.activeElement;
-    const elTop = el ? el.getBoundingClientRect().top : null;
     const ns = scores.map((h, i) => i === hole ? h.map((s2, j) => j === pi ? val : s2) : [...h]);
     const no = teeOrders.map((o) => [...o]);
     for (let h = 0; h < 18; h++) {
@@ -94,16 +92,6 @@ export default function GolfCalculator() {
       if (ns[next].every((v) => v === 0)) no[next] = sorted;
     }
     up({ scores: ns, teeOrders: no });
-    if (el && elTop !== null) {
-      const fix = () => {
-        const newTop = el.getBoundingClientRect().top;
-        const diff = newTop - elTop;
-        if (Math.abs(diff) > 1) window.scrollBy(0, diff);
-      };
-      requestAnimationFrame(fix);
-      setTimeout(fix, 50);
-      setTimeout(fix, 150);
-    }
   }
 
   function swapTee(hole, i1, i2) {
@@ -664,6 +652,29 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
 }
 
 /* ======== PLAY ======== */
+
+function ScoreInput({ value, onChange, style: sty }) {
+  const [local, setLocal] = useState(value || "");
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setLocal(value || ""); }, [value, focused]);
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      style={sty}
+      value={focused ? local : (value || "")}
+      onFocus={(e) => { setFocused(true); setLocal(value || ""); e.target.select(); }}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => {
+        setFocused(false);
+        const v = parseInt(local) || 0;
+        const clamped = Math.max(0, Math.min(20, v));
+        if (clamped !== (value || 0)) onChange(clamped);
+      }}
+    />
+  );
+}
+
 const RANKS = {
   diamond: { l: "💎", c: C.dia, p: 5 },
   gold: { l: "🥇", c: "#ffd700", p: 4 },
@@ -769,7 +780,7 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
                 {order.map((pi) => (
                   <div key={pi}>
                     <div style={{ fontSize: 10, color: tA.includes(pi) ? C.goldL : C.blue, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{players[pi]}</div>
-                    <input type="number" inputMode="numeric" onFocus={(e) => e.target.select()} style={S.sInp} value={scores[h][pi] || ""} onChange={(e) => { const v = parseInt(e.target.value) || 0; onScore(h, pi, Math.max(0, Math.min(20, v))); }} />
+                    <ScoreInput style={S.sInp} value={scores[h][pi]} onChange={(v) => onScore(h, pi, v)} />
                   </div>
                 ))}
               </div>
