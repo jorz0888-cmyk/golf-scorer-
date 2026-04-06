@@ -653,17 +653,77 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
 
 /* ======== PLAY ======== */
 
-function ScoreInput({ value, onChange, color }) {
-  const v = value || 0;
+function HoleScoreEntry({ players, order, teamA, scores, par, onScore }) {
+  const [sel, setSel] = useState(null); // selected player index
+  const [val, setVal] = useState(par);
+
+  function handleSelect(pi) {
+    if (sel === pi) { setSel(null); return; }
+    setSel(pi);
+    setVal(scores[pi] > 0 ? scores[pi] : par);
+  }
+
+  function handleSubmit() {
+    if (sel === null) return;
+    onScore(sel, val);
+    // Move to next player without score
+    const currentOrderIdx = order.indexOf(sel);
+    let next = null;
+    for (let i = 1; i <= 4; i++) {
+      const ni = order[(currentOrderIdx + i) % 4];
+      if (scores[ni] === 0 || (ni === sel && val === 0)) { next = ni; break; }
+    }
+    if (next !== null && next !== sel) {
+      setSel(next);
+      setVal(par);
+    } else {
+      setSel(null);
+    }
+  }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-      <button onClick={() => { if (v < 20) onChange(v + 1); }}
-        style={{ width: 44, height: 28, borderRadius: "8px 8px 0 0", border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>▲</button>
-      <div style={{ width: 44, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: C.alt, border: `1px solid ${C.brd}`, borderTop: "none", borderBottom: "none", fontSize: 20, fontWeight: 700, color: v > 0 ? C.txt : C.mut }}>
-        {v || "−"}
+    <div>
+      {/* Player score grid - tap to select/edit */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, textAlign: "center" }}>
+        {order.map((pi) => {
+          const isSel = sel === pi;
+          const hasScore = scores[pi] > 0;
+          return (
+            <button key={pi} onClick={() => handleSelect(pi)}
+              style={{ padding: "6px 4px", borderRadius: 8, cursor: "pointer", border: `2px solid ${isSel ? C.gold : hasScore ? `${C.ok}60` : C.brd}`, background: isSel ? `${C.gold}20` : hasScore ? `${C.ok}10` : C.alt, transition: "all 0.15s" }}>
+              <div style={{ fontSize: 10, color: teamA.includes(pi) ? C.goldL : C.blue, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{players[pi]}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: hasScore ? C.txt : C.mut }}>{hasScore ? scores[pi] : "−"}</div>
+            </button>
+          );
+        })}
       </div>
-      <button onClick={() => { if (v > 0) onChange(v - 1); }}
-        style={{ width: 44, height: 28, borderRadius: "0 0 8px 8px", border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>▼</button>
+
+      {/* Central input - shown when player selected */}
+      {sel !== null && (
+        <div style={{ marginTop: 10, padding: "12px", background: C.alt, borderRadius: 10, border: `1px solid ${C.gold}40` }}>
+          <div style={{ textAlign: "center", fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 8 }}>
+            {players[sel]} のスコア
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+            <button onClick={() => { if (val > 1) setVal(val - 1); }}
+              style={{ width: 48, height: 48, borderRadius: 12, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontSize: 24, fontWeight: 700, cursor: "pointer" }}>−</button>
+            <div style={{ width: 64, textAlign: "center" }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: C.txt }}>{val}</div>
+              <div style={{ fontSize: 10, color: val === par ? C.dim : val < par ? C.ok : C.red, fontWeight: 600 }}>
+                {val === par ? "PAR" : val < par ? `${val - par}` : `+${val - par}`}
+              </div>
+            </div>
+            <button onClick={() => { if (val < 20) setVal(val + 1); }}
+              style={{ width: 48, height: 48, borderRadius: 12, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontSize: 24, fontWeight: 700, cursor: "pointer" }}>＋</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button onClick={() => setSel(null)}
+              style={{ flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: "transparent", color: C.mut, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
+            <button onClick={handleSubmit}
+              style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: `linear-gradient(135deg,${C.gold},${C.goldD})`, color: C.bg, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>確定 ✓</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -769,14 +829,14 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, textAlign: "center" }}>
-                {order.map((pi) => (
-                  <div key={pi}>
-                    <div style={{ fontSize: 10, color: tA.includes(pi) ? C.goldL : C.blue, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{players[pi]}</div>
-                    <ScoreInput value={scores[h][pi]} onChange={(v) => onScore(h, pi, v)} />
-                  </div>
-                ))}
-              </div>
+              <HoleScoreEntry
+                players={players}
+                order={order}
+                teamA={tA}
+                scores={scores[h]}
+                par={pars[h]}
+                onScore={(pi, v) => onScore(h, pi, v)}
+              />
 
               {/* Nearpin */}
               {pars[h] === 3 && (
