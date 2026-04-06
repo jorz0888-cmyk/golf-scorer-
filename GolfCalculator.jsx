@@ -9,6 +9,7 @@ const INITIAL_STATE = {
   npCarry: false,
   gsRate: 0,
   handicaps: [0, 0, 0, 0],
+  hcMe: 0,
   hcHalfPt: 0,
   hcTotalPt: 0,
   vegasOptions: { cap9: false, birdieReverse: false, fixedPairs: false, push: false, simpleCalc: false, headTie: false },
@@ -38,6 +39,7 @@ function loadState() {
       if (p.npCarry === undefined) p.npCarry = false;
       if (p.gsRate === undefined) p.gsRate = 0;
       if (!p.handicaps) p.handicaps = [0, 0, 0, 0];
+      if (p.hcMe === undefined) p.hcMe = 0;
       if (p.hcHalfPt === undefined) p.hcHalfPt = 0;
       if (p.hcTotalPt === undefined) p.hcTotalPt = 0;
       if (!p.nearpin) p.nearpin = Array.from({ length: 18 }, () => -1);
@@ -68,7 +70,7 @@ export default function GolfCalculator() {
   useEffect(() => { saveState(state); }, [state]);
   const up = useCallback((patch) => setState((p) => ({ ...p, ...patch })), []);
 
-  const { screen, players, rate, oRate, npRate, npCarry, gsRate, handicaps, hcHalfPt, hcTotalPt, vegasOptions: vo, scores, pars, teeOrders, nearpin, olympic } = state;
+  const { screen, players, rate, oRate, npRate, npCarry, gsRate, handicaps, hcMe, hcHalfPt, hcTotalPt, vegasOptions: vo, scores, pars, teeOrders, nearpin, olympic } = state;
 
   // --- Par ---
   function cyclePar(hole) {
@@ -92,7 +94,10 @@ export default function GolfCalculator() {
       if (ns[next].every((v) => v === 0)) no[next] = sorted;
     }
     up({ scores: ns, teeOrders: no });
-    requestAnimationFrame(() => window.scrollTo(0, scrollY));
+    const restore = () => window.scrollTo(0, scrollY);
+    requestAnimationFrame(restore);
+    setTimeout(restore, 50);
+    setTimeout(restore, 150);
   }
 
   function swapTee(hole, i1, i2) {
@@ -250,50 +255,46 @@ export default function GolfCalculator() {
       winTeam.forEach((pi) => { npPay[pi] += npRate * mult; });
       loseTeam.forEach((pi) => { npPay[pi] -= npRate * mult; });
     }
-    // Handicap match: pairwise comparison with handicap applied
+    // Handicap match: me vs each opponent only
     const hcMatches = [];
     const hcPay = [0, 0, 0, 0];
     if (hcHalfPt > 0 || hcTotalPt > 0) {
-      // Calculate per-player scores
       const pScores = players.map((_, pi) => {
         let out = 0, inn = 0, outC = 0, inC = 0;
         for (let h = 0; h < 9; h++) { if (scores[h][pi] > 0) { out += scores[h][pi]; outC++; } }
         for (let h = 9; h < 18; h++) { if (scores[h][pi] > 0) { inn += scores[h][pi]; inC++; } }
         return { out, inn, total: out + inn, outC, inC };
       });
-      for (let i = 0; i < 4; i++)
-        for (let j = i + 1; j < 4; j++) {
-          const hcDiff = handicaps[i] - handicaps[j]; // positive = i has higher hc = i gets strokes
-          const m = { p1: i, p2: j, hcDiff, results: [] };
-          // OUT
-          if (pScores[i].outC > 0 && pScores[j].outC > 0) {
-            const rawDiff = pScores[i].out - pScores[j].out; // positive = i scored more = i worse
-            const adjDiff = rawDiff - hcDiff; // subtract handicap advantage
-            m.results.push({ label: "OUT", diff: adjDiff, winner: adjDiff < 0 ? i : adjDiff > 0 ? j : -1 });
-          }
-          // IN
-          if (pScores[i].inC > 0 && pScores[j].inC > 0) {
-            const rawDiff = pScores[i].inn - pScores[j].inn;
-            const adjDiff = rawDiff - hcDiff;
-            m.results.push({ label: "IN", diff: adjDiff, winner: adjDiff < 0 ? i : adjDiff > 0 ? j : -1 });
-          }
-          // Total
-          if (pScores[i].outC + pScores[i].inC > 0 && pScores[j].outC + pScores[j].inC > 0) {
-            const rawDiff = pScores[i].total - pScores[j].total;
-            const adjDiff = rawDiff - hcDiff;
-            m.results.push({ label: "トータル", diff: adjDiff, winner: adjDiff < 0 ? i : adjDiff > 0 ? j : -1 });
-          }
-          hcMatches.push(m);
-          // Calculate payments
-          m.results.forEach((r) => {
-            const pt = r.label === "トータル" ? hcTotalPt : hcHalfPt;
-            if (r.winner >= 0 && pt > 0) {
-              hcPay[r.winner] += pt;
-              const loser = r.winner === i ? j : i;
-              hcPay[loser] -= pt;
-            }
-          });
+      const me = hcMe;
+      for (let j = 0; j < 4; j++) {
+        if (j === me) continue;
+        const hcDiff = handicaps[me] - handicaps[j];
+        const m = { p1: me, p2: j, hcDiff, results: [] };
+        if (pScores[me].outC > 0 && pScores[j].outC > 0) {
+          const rawDiff = pScores[me].out - pScores[j].out;
+          const adjDiff = rawDiff - hcDiff;
+          m.results.push({ label: "OUT", diff: adjDiff, winner: adjDiff < 0 ? me : adjDiff > 0 ? j : -1 });
         }
+        if (pScores[me].inC > 0 && pScores[j].inC > 0) {
+          const rawDiff = pScores[me].inn - pScores[j].inn;
+          const adjDiff = rawDiff - hcDiff;
+          m.results.push({ label: "IN", diff: adjDiff, winner: adjDiff < 0 ? me : adjDiff > 0 ? j : -1 });
+        }
+        if (pScores[me].outC + pScores[me].inC > 0 && pScores[j].outC + pScores[j].inC > 0) {
+          const rawDiff = pScores[me].total - pScores[j].total;
+          const adjDiff = rawDiff - hcDiff;
+          m.results.push({ label: "トータル", diff: adjDiff, winner: adjDiff < 0 ? me : adjDiff > 0 ? j : -1 });
+        }
+        hcMatches.push(m);
+        m.results.forEach((r2) => {
+          const pt = r2.label === "トータル" ? hcTotalPt : hcHalfPt;
+          if (r2.winner >= 0 && pt > 0) {
+            hcPay[r2.winner] += pt;
+            const loser = r2.winner === me ? j : me;
+            hcPay[loser] -= pt;
+          }
+        });
+      }
     }
     const tot = players.map((_, i) => {
       const v = Math.ceil(vPay[i]);
@@ -308,9 +309,9 @@ export default function GolfCalculator() {
   }
 
   if (screen === "setup")
-    return <Setup players={players} rate={rate} oRate={oRate} npRate={npRate} npCarry={npCarry} gsRate={gsRate} handicaps={handicaps} hcHalfPt={hcHalfPt} hcTotalPt={hcTotalPt} pars={pars} vo={vo}
-      onStart={(p, r, or2, nr, nc, gs, hc, hhp, htp, v, coursePars) => up({
-        players: p, rate: r, oRate: or2, npRate: nr, npCarry: nc, gsRate: gs, handicaps: hc, hcHalfPt: hhp, hcTotalPt: htp, vegasOptions: v, screen: "play",
+    return <Setup players={players} rate={rate} oRate={oRate} npRate={npRate} npCarry={npCarry} gsRate={gsRate} handicaps={handicaps} hcMe={hcMe} hcHalfPt={hcHalfPt} hcTotalPt={hcTotalPt} pars={pars} vo={vo}
+      onStart={(p, r, or2, nr, nc, gs, hc, hm, hhp, htp, v, coursePars) => up({
+        players: p, rate: r, oRate: or2, npRate: nr, npCarry: nc, gsRate: gs, handicaps: hc, hcMe: hm, hcHalfPt: hhp, hcTotalPt: htp, vegasOptions: v, screen: "play",
         scores: Array.from({ length: 18 }, () => [0, 0, 0, 0]),
         pars: coursePars,
         teeOrders: Array.from({ length: 18 }, () => [0, 1, 2, 3]),
@@ -425,7 +426,7 @@ function HandicapMemo() {
 }
 
 /* ======== SETUP ======== */
-function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: initGsRate, handicaps: initHc, hcHalfPt: initHhp, hcTotalPt: initHtp, pars: initPars, vo: vegOpts, onStart, onResume, hasData }) {
+function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: initGsRate, handicaps: initHc, hcMe: initHcMe, hcHalfPt: initHhp, hcTotalPt: initHtp, pars: initPars, vo: vegOpts, onStart, onResume, hasData }) {
   const [p, setP] = useState([...players]);
   const [r, setR] = useState(rate);
   const [or2, setOr] = useState(oRate);
@@ -434,6 +435,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
   const [gs, setGs] = useState(initGsRate);
   const [hc, setHc] = useState([...initHc]);
   const [hcStr, setHcStr] = useState(initHc.map((v) => v === 0 ? "" : String(v)));
+  const [hm, setHm] = useState(initHcMe);
   const [hhp, setHhp] = useState(initHhp);
   const [htp, setHtp] = useState(initHtp);
   const [vo, setVo] = useState({ ...vegOpts });
@@ -598,19 +600,32 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
       {/* Handicap Match */}
       <div style={S.card}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 12, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
-        <div style={{ fontSize: 11, color: C.mut, marginBottom: 10, lineHeight: 1.5 }}>自分は0（基準）。＋は相手にあげる、−は貰う。</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+
+        {/* Self selector */}
+        <div style={{ fontSize: 11, color: C.mut, marginBottom: 6 }}>自分を選択:</div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
           {p.map((name, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 12, color: C.dim, width: 46, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}>{name || `P${i + 1}`}</span>
-              <button onClick={() => { const nh = [...hc]; nh[i]--; setHc(nh); const ns = [...hcStr]; ns[i] = String(nh[i]); setHcStr(ns); }}
-                style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>−</button>
-              <div style={{ width: 36, textAlign: "center", fontSize: 16, fontWeight: 700, color: hc[i] > 0 ? C.ok : hc[i] < 0 ? C.red : C.dim }}>{hc[i]}</div>
-              <button onClick={() => { const nh = [...hc]; nh[i]++; setHc(nh); const ns = [...hcStr]; ns[i] = String(nh[i]); setHcStr(ns); }}
-                style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>＋</button>
-              {hc[i] === 0 && <span style={{ fontSize: 9, color: C.gold, flexShrink: 0 }}>基準</span>}
-            </div>
+            <button key={i} onClick={() => setHm(i)} style={{ flex: 1, padding: "6px 4px", borderRadius: 8, fontSize: 12, fontWeight: hm === i ? 700 : 400, border: `1px solid ${hm === i ? C.gold : C.brd}`, background: hm === i ? `${C.gold}25` : "transparent", color: hm === i ? C.gold : C.mut, cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {hm === i ? "⭐ " : ""}{name || `P${i + 1}`}
+            </button>
           ))}
+        </div>
+
+        <div style={{ fontSize: 11, color: C.mut, marginBottom: 10, lineHeight: 1.5 }}>相手のハンデを設定。＋はあげる、−は貰う。</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+          {p.map((name, i) => {
+            if (i === hm) return null;
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13, color: C.dim, width: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}>{name || `P${i + 1}`}</span>
+                <button onClick={() => { const nh = [...hc]; nh[i]--; setHc(nh); }}
+                  style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>−</button>
+                <div style={{ width: 36, textAlign: "center", fontSize: 18, fontWeight: 700, color: hc[i] > 0 ? C.ok : hc[i] < 0 ? C.red : C.dim }}>{hc[i]}</div>
+                <button onClick={() => { const nh = [...hc]; nh[i]++; setHc(nh); }}
+                  style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>＋</button>
+              </div>
+            );
+          })}
         </div>
         <div style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -634,7 +649,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
       <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
         <button style={{ ...S.btn, opacity: ok ? 1 : 0.4 }} disabled={!ok} onClick={() => {
           if (hasData && !confirm("前回のデータは削除されますが宜しいですか？")) return;
-          onStart(p, r, or2, nr, nc, gs, hc, hhp, htp, vo, coursePars);
+          onStart(p, r, or2, nr, nc, gs, hc, hm, hhp, htp, vo, coursePars);
         }}>スタート ⛳</button>
         {hasData && <button style={S.btnO} onClick={onResume}>前回のデータを再開</button>}
       </div>
