@@ -81,7 +81,8 @@ export default function GolfCalculator() {
 
   // --- Tee Order ---
   function handleScore(hole, pi, val) {
-    const scrollY = window.scrollY;
+    const el = document.activeElement;
+    const elTop = el ? el.getBoundingClientRect().top : null;
     const ns = scores.map((h, i) => i === hole ? h.map((s2, j) => j === pi ? val : s2) : [...h]);
     const no = teeOrders.map((o) => [...o]);
     for (let h = 0; h < 18; h++) {
@@ -89,15 +90,20 @@ export default function GolfCalculator() {
       if (sc.some((v) => v === 0)) continue;
       const cur = no[h];
       const sorted = [...Array(4).keys()].sort((a, b) => sc[a] !== sc[b] ? sc[a] - sc[b] : cur.indexOf(a) - cur.indexOf(b));
-      // Next hole: 17→0 (IN→OUT wrap), otherwise h+1
       const next = h === 17 ? 0 : h + 1;
       if (ns[next].every((v) => v === 0)) no[next] = sorted;
     }
     up({ scores: ns, teeOrders: no });
-    const restore = () => window.scrollTo(0, scrollY);
-    requestAnimationFrame(restore);
-    setTimeout(restore, 50);
-    setTimeout(restore, 150);
+    if (el && elTop !== null) {
+      const fix = () => {
+        const newTop = el.getBoundingClientRect().top;
+        const diff = newTop - elTop;
+        if (Math.abs(diff) > 1) window.scrollBy(0, diff);
+      };
+      requestAnimationFrame(fix);
+      setTimeout(fix, 50);
+      setTimeout(fix, 150);
+    }
   }
 
   function swapTee(hole, i1, i2) {
@@ -303,7 +309,7 @@ export default function GolfCalculator() {
       const np = npPay[i];
       const gs = gsPay[i];
       const hc = hcPay[i];
-      return { v, o: Math.ceil(o), np, gs, hc, t: Math.ceil(v + o + np + gs + hc) };
+      return { v, o: Math.ceil(o), np, gs, hc, t: Math.ceil(v + o + np + gs) };
     });
     return { oP, oS, npCount, vSettlements, vPts, gsAchieved, hcMatches, tot };
   }
@@ -358,7 +364,7 @@ const C = {
 const S = {
   wrap: { minHeight: "100vh", background: `linear-gradient(180deg,${C.bg} 0%,#0d2812 50%,${C.bg} 100%)`, color: C.txt, fontFamily: "'Helvetica Neue','Hiragino Sans','Yu Gothic',sans-serif", maxWidth: 480, margin: "0 auto", paddingBottom: 100 },
   hdr: { background: `linear-gradient(135deg,${C.card} 0%,#0d2812 100%)`, borderBottom: `1px solid ${C.brd}`, padding: "20px 16px 16px", textAlign: "center" },
-  card: { background: C.card, border: `1px solid ${C.brd}`, borderRadius: 12, margin: "12px", padding: 16, contain: "content" },
+  card: { background: C.card, border: `1px solid ${C.brd}`, borderRadius: 12, margin: "12px", padding: 16 },
   inp: { width: "100%", background: C.alt, border: `1px solid ${C.brd}`, borderRadius: 8, color: C.txt, padding: "10px 12px", fontSize: 15, outline: "none", boxSizing: "border-box" },
   btn: { background: `linear-gradient(135deg,${C.gold},${C.goldD})`, color: C.bg, border: "none", borderRadius: 10, padding: "14px 24px", fontSize: 16, fontWeight: 700, cursor: "pointer", width: "100%", letterSpacing: 1 },
   btnO: { background: "transparent", color: C.gold, border: `1px solid ${C.gold}`, borderRadius: 10, padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%" },
@@ -1130,26 +1136,14 @@ function Settle({ players, rate, oRate, npRate, gsRate, handicaps, hcHalfPt, hcT
 
       <div style={S.card}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 12, letterSpacing: 1 }}>🏅 オリンピック結果</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, textAlign: "center", marginBottom: 16 }}>
-          {players.map((n, i) => (
-            <div key={i}>
-              <div style={{ fontSize: 11, color: C.dim, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n}</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: C.goldL }}>{oP[i]}</div>
-              <div style={{ fontSize: 10, color: C.mut }}>pts</div>
-            </div>
-          ))}
-        </div>
-        {oS.length > 0 && (
-          <div style={{ borderTop: `1px solid ${C.brd}`, paddingTop: 12 }}>
-            <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>支払い詳細:</div>
-            {oS.map((x, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", fontSize: 13 }}>
-                <span><span style={{ color: C.red }}>{players[x.from]}</span> → <span style={{ color: C.ok }}>{players[x.to]}</span></span>
-                <span style={{ color: C.gold, fontWeight: 600 }}>{x.amt.toLocaleString()}pt <span style={{ fontSize: 10, color: C.mut }}>({x.pts}差)</span></span>
-              </div>
-            ))}
+        {players.map((n, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < 3 ? `1px solid ${C.brd}22` : "none" }}>
+            <span style={{ fontSize: 14 }}>{n} <span style={{ fontSize: 11, color: C.mut }}>{oP[i]}pts</span></span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: tot[i].o > 0 ? C.ok : tot[i].o < 0 ? C.red : C.dim }}>
+              {tot[i].o > 0 ? "+" : ""}{tot[i].o.toLocaleString()}pt
+            </span>
           </div>
-        )}
+        ))}
       </div>
 
       {/* Grand Slam */}
@@ -1225,14 +1219,14 @@ function Settle({ players, rate, oRate, npRate, gsRate, handicaps, hcHalfPt, hcT
       )}
 
       <div style={{ ...S.card, background: "#0d2015", border: `1px solid ${C.gold}40` }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: C.goldL, marginBottom: 12, letterSpacing: 1 }}>💰 最終収支</div>
-        <div style={{ fontSize: 12, color: C.mut, marginBottom: 12 }}>🎰 1点={rate.toLocaleString()}pt　🏅 1点={oRate.toLocaleString()}pt　🎯 1回={npRate.toLocaleString()}pt{gsRate > 0 ? `　🏆 ${gsRate.toLocaleString()}pt` : ""}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: C.goldL, marginBottom: 12, letterSpacing: 1 }}>💰 ラスベガス・オリンピック最終収支</div>
+        <div style={{ fontSize: 12, color: C.mut, marginBottom: 12 }}>🎰 1点={rate.toLocaleString()}pt　🏅 1点={oRate.toLocaleString()}pt{npRate > 0 ? `　🎯 1回=${npRate.toLocaleString()}pt` : ""}{gsRate > 0 ? `　🏆 ${gsRate.toLocaleString()}pt` : ""}</div>
         {players.map((n, i) => (
           <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < 3 ? `1px solid ${C.brd}33` : "none" }}>
             <div>
               <span style={{ fontSize: 15, fontWeight: 500 }}>{n}</span>
               <div style={{ fontSize: 10, color: C.mut, marginTop: 2 }}>
-                V: {tot[i].v > 0 ? "+" : ""}{tot[i].v.toLocaleString()}{"　"}O: {tot[i].o > 0 ? "+" : ""}{tot[i].o.toLocaleString()}{tot[i].np !== 0 ? `　N: ${tot[i].np > 0 ? "+" : ""}${tot[i].np.toLocaleString()}` : ""}{tot[i].gs !== 0 ? `　G: ${tot[i].gs > 0 ? "+" : ""}${tot[i].gs.toLocaleString()}` : ""}{tot[i].hc !== 0 ? `　H: ${tot[i].hc > 0 ? "+" : ""}${tot[i].hc.toLocaleString()}` : ""}
+                V: {tot[i].v > 0 ? "+" : ""}{tot[i].v.toLocaleString()}{"　"}O: {tot[i].o > 0 ? "+" : ""}{tot[i].o.toLocaleString()}{tot[i].np !== 0 ? `　N: ${tot[i].np > 0 ? "+" : ""}${tot[i].np.toLocaleString()}` : ""}{tot[i].gs !== 0 ? `　G: ${tot[i].gs > 0 ? "+" : ""}${tot[i].gs.toLocaleString()}` : ""}
               </div>
             </div>
             <span style={{ fontSize: 22, fontWeight: 700, color: tot[i].t > 0 ? C.ok : tot[i].t < 0 ? C.red : C.dim }}>
