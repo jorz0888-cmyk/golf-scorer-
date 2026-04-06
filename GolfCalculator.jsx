@@ -653,25 +653,18 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
 
 /* ======== PLAY ======== */
 
-function ScoreInput({ value, onChange, style: sty }) {
-  const [local, setLocal] = useState(value || "");
-  const [focused, setFocused] = useState(false);
-  useEffect(() => { if (!focused) setLocal(value || ""); }, [value, focused]);
+function ScoreInput({ value, onChange, color }) {
+  const v = value || 0;
   return (
-    <input
-      type="number"
-      inputMode="numeric"
-      style={sty}
-      value={focused ? local : (value || "")}
-      onFocus={(e) => { setFocused(true); setLocal(value || ""); e.target.select(); }}
-      onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => {
-        setFocused(false);
-        const v = parseInt(local) || 0;
-        const clamped = Math.max(0, Math.min(20, v));
-        if (clamped !== (value || 0)) onChange(clamped);
-      }}
-    />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+      <button onClick={() => { if (v < 20) onChange(v + 1); }}
+        style={{ width: 44, height: 28, borderRadius: "8px 8px 0 0", border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>▲</button>
+      <div style={{ width: 44, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: C.alt, border: `1px solid ${C.brd}`, borderTop: "none", borderBottom: "none", fontSize: 20, fontWeight: 700, color: v > 0 ? C.txt : C.mut }}>
+        {v || "−"}
+      </div>
+      <button onClick={() => { if (v > 0) onChange(v - 1); }}
+        style={{ width: 44, height: 28, borderRadius: "0 0 8px 8px", border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>▼</button>
+    </div>
   );
 }
 
@@ -780,7 +773,7 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
                 {order.map((pi) => (
                   <div key={pi}>
                     <div style={{ fontSize: 10, color: tA.includes(pi) ? C.goldL : C.blue, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{players[pi]}</div>
-                    <ScoreInput style={S.sInp} value={scores[h][pi]} onChange={(v) => onScore(h, pi, v)} />
+                    <ScoreInput value={scores[h][pi]} onChange={(v) => onScore(h, pi, v)} />
                   </div>
                 ))}
               </div>
