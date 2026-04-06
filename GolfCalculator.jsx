@@ -654,73 +654,108 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
 /* ======== PLAY ======== */
 
 function HoleScoreEntry({ players, order, teamA, scores, par, onScore }) {
-  const [sel, setSel] = useState(null); // selected player index
+  const [mode, setMode] = useState(null); // null=summary, 'input'=sequential input, number=editing specific player
+  const [curIdx, setCurIdx] = useState(0); // index into order array
   const [val, setVal] = useState(par);
 
-  function handleSelect(pi) {
-    if (sel === pi) { setSel(null); return; }
-    setSel(pi);
-    setVal(scores[pi] > 0 ? scores[pi] : par);
+  // Find first unscored player
+  function findFirstEmpty() {
+    for (let i = 0; i < 4; i++) {
+      if (scores[order[i]] === 0) return i;
+    }
+    return -1;
+  }
+
+  function startInput() {
+    const first = findFirstEmpty();
+    if (first === -1) { setCurIdx(0); setVal(scores[order[0]]); }
+    else { setCurIdx(first); setVal(par); }
+    setMode("input");
+  }
+
+  function editPlayer(orderIdx) {
+    setCurIdx(orderIdx);
+    setVal(scores[order[orderIdx]] > 0 ? scores[order[orderIdx]] : par);
+    setMode("input");
   }
 
   function handleSubmit() {
-    if (sel === null) return;
-    onScore(sel, val);
-    // Move to next player without score
-    const currentOrderIdx = order.indexOf(sel);
-    let next = null;
+    const pi = order[curIdx];
+    onScore(pi, val);
+    // Auto-advance to next unscored
+    let nextIdx = -1;
     for (let i = 1; i <= 4; i++) {
-      const ni = order[(currentOrderIdx + i) % 4];
-      if (scores[ni] === 0 || (ni === sel && val === 0)) { next = ni; break; }
+      const ni = (curIdx + i) % 4;
+      const npi = order[ni];
+      if (scores[npi] === 0 && npi !== pi) { nextIdx = ni; break; }
     }
-    if (next !== null && next !== sel) {
-      setSel(next);
+    if (nextIdx >= 0) {
+      setCurIdx(nextIdx);
       setVal(par);
     } else {
-      setSel(null);
+      setMode(null);
     }
   }
 
+  const allDone = scores.every((s) => s > 0);
+  const anyDone = scores.some((s) => s > 0);
+  const currentPi = mode === "input" ? order[curIdx] : null;
+
   return (
     <div>
-      {/* Player score grid - tap to select/edit */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, textAlign: "center" }}>
-        {order.map((pi) => {
-          const isSel = sel === pi;
+      {/* Summary row - always visible */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4, textAlign: "center", marginBottom: mode === "input" ? 10 : 0 }}>
+        {order.map((pi, oi) => {
           const hasScore = scores[pi] > 0;
+          const isCurrent = mode === "input" && oi === curIdx;
           return (
-            <button key={pi} onClick={() => handleSelect(pi)}
-              style={{ padding: "6px 4px", borderRadius: 8, cursor: "pointer", border: `2px solid ${isSel ? C.gold : hasScore ? `${C.ok}60` : C.brd}`, background: isSel ? `${C.gold}20` : hasScore ? `${C.ok}10` : C.alt, transition: "all 0.15s" }}>
-              <div style={{ fontSize: 10, color: teamA.includes(pi) ? C.goldL : C.blue, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{players[pi]}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: hasScore ? C.txt : C.mut }}>{hasScore ? scores[pi] : "−"}</div>
+            <button key={pi} onClick={() => { if (mode === "input") editPlayer(oi); else if (hasScore) editPlayer(oi); }}
+              style={{ padding: "4px 2px", borderRadius: 8, cursor: hasScore || mode === "input" ? "pointer" : "default",
+                border: `2px solid ${isCurrent ? C.gold : hasScore ? `${C.ok}50` : "transparent"}`,
+                background: isCurrent ? `${C.gold}15` : "transparent" }}>
+              <div style={{ fontSize: 11, color: teamA.includes(pi) ? C.goldL : C.blue, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{players[pi]}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: hasScore ? C.txt : C.mut }}>{hasScore ? scores[pi] : "−"}</div>
             </button>
           );
         })}
       </div>
 
-      {/* Central input - shown when player selected */}
-      {sel !== null && (
-        <div style={{ marginTop: 10, padding: "12px", background: C.alt, borderRadius: 10, border: `1px solid ${C.gold}40` }}>
-          <div style={{ textAlign: "center", fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 8 }}>
-            {players[sel]} のスコア
+      {/* Input button or input panel */}
+      {mode !== "input" && !allDone && (
+        <button onClick={startInput}
+          style={{ width: "100%", marginTop: 8, padding: "12px", borderRadius: 10, border: `1px dashed ${C.gold}80`, background: `${C.gold}10`, color: C.gold, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+          {anyDone ? "続きを入力 ⛳" : "スコア入力 ⛳"}
+        </button>
+      )}
+
+      {mode === "input" && (
+        <div style={{ padding: "16px 12px", background: C.alt, borderRadius: 12, border: `1px solid ${C.gold}40` }}>
+          {/* Current player - BIG */}
+          <div style={{ textAlign: "center", marginBottom: 4 }}>
+            <div style={{ fontSize: 12, color: C.mut }}>打順{curIdx + 1}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: teamA.includes(order[curIdx]) ? C.goldL : C.blue }}>
+              {players[order[curIdx]]}
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, margin: "12px 0" }}>
             <button onClick={() => { if (val > 1) setVal(val - 1); }}
-              style={{ width: 48, height: 48, borderRadius: 12, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontSize: 24, fontWeight: 700, cursor: "pointer" }}>−</button>
-            <div style={{ width: 64, textAlign: "center" }}>
-              <div style={{ fontSize: 36, fontWeight: 700, color: C.txt }}>{val}</div>
-              <div style={{ fontSize: 10, color: val === par ? C.dim : val < par ? C.ok : C.red, fontWeight: 600 }}>
+              style={{ width: 56, height: 56, borderRadius: 14, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontSize: 28, fontWeight: 700, cursor: "pointer" }}>−</button>
+            <div style={{ width: 80, textAlign: "center" }}>
+              <div style={{ fontSize: 48, fontWeight: 700, color: C.txt, lineHeight: 1 }}>{val}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4, color: val === par ? C.dim : val < par ? C.ok : C.red }}>
                 {val === par ? "PAR" : val < par ? `${val - par}` : `+${val - par}`}
               </div>
             </div>
             <button onClick={() => { if (val < 20) setVal(val + 1); }}
-              style={{ width: 48, height: 48, borderRadius: 12, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontSize: 24, fontWeight: 700, cursor: "pointer" }}>＋</button>
+              style={{ width: 56, height: 56, borderRadius: 14, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontSize: 28, fontWeight: 700, cursor: "pointer" }}>＋</button>
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button onClick={() => setSel(null)}
-              style={{ flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: "transparent", color: C.mut, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setMode(null)}
+              style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${C.brd}`, background: "transparent", color: C.mut, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>閉じる</button>
             <button onClick={handleSubmit}
-              style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: `linear-gradient(135deg,${C.gold},${C.goldD})`, color: C.bg, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>確定 ✓</button>
+              style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: `linear-gradient(135deg,${C.gold},${C.goldD})`, color: C.bg, fontSize: 16, fontWeight: 700, cursor: "pointer" }}>確定 ✓</button>
           </div>
         </div>
       )}
