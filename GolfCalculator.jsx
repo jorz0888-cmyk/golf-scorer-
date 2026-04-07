@@ -601,7 +601,7 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
       <div style={S.card}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 8, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
         <div style={{ fontSize: 12, color: C.txt, marginBottom: 12, lineHeight: 1.6, padding: "8px 10px", background: `${C.alt}80`, borderRadius: 8 }}>
-          ※ ハンデはスタート後でも変更できます。打順が決まってから設定してもOKです。
+          ※ 打順が決まってから入力してください。スタート後でもプレイ画面から設定できます。
         </div>
 
         {/* Self selector */}
