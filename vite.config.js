@@ -1,14 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { copyFileSync } from 'fs'
+import { copyFileSync, existsSync } from 'fs'
 
 export default defineConfig({
   plugins: [
     react(),
     {
-      name: 'copy-og',
+      name: 'copy-pwa-assets',
       closeBundle() {
-        try { copyFileSync('og-image.png', 'dist/og-image.png'); } catch {}
+        const files = ['og-image.png', 'icon-192.png', 'icon-512.png', 'manifest.json', 'sw.js'];
+        files.forEach(f => {
+          try { if (existsSync(f)) copyFileSync(f, `dist/${f}`); } catch {}
+        });
       }
     }
   ],
