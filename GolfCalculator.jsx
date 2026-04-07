@@ -68,6 +68,7 @@ function saveCourses(courses) {
 export default function GolfCalculator() {
   const [state, setState] = useState(() => loadState() || INITIAL_STATE);
   useEffect(() => { saveState(state); }, [state]);
+  useEffect(() => { window.scrollTo(0, 0); }, [state.screen]);
   const up = useCallback((patch) => setState((p) => ({ ...p, ...patch })), []);
 
   const { screen, players, rate, oRate, npRate, npCarry, gsRate, handicaps, hcMe, hcHalfPt, hcTotalPt, vegasOptions: vo, scores, pars, teeOrders, nearpin, olympic } = state;
