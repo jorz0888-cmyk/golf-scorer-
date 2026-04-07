@@ -322,9 +322,14 @@ export default function GolfCalculator() {
       onBack={() => up({ screen: "play" })}
       onReset={() => { localStorage.removeItem("golf-calc-v4"); setState(INITIAL_STATE); }} />;
 
-  return <Play {...{ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oRate, npRate, npCarry }}
+  return <Play {...{ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oRate, npRate, npCarry, handicaps, hcMe }}
     getTeams={getTeams} vCum={vegasCum()} oPts={oPts} personal={personalScores()}
     onScore={handleScore} onSwap={swapTee} onPar={cyclePar}
+    onHandicap={(pi, val) => {
+      const nh = [...handicaps];
+      nh[pi] = val;
+      up({ handicaps: nh });
+    }}
     onNearpin={(h, pi) => {
       const nn = [...nearpin];
       nn[h] = nn[h] === pi ? -1 : pi;
@@ -593,7 +598,10 @@ function Setup({ players, rate, oRate, npRate, npCarry: initNpCarry, gsRate: ini
 
       {/* Handicap Match */}
       <div style={S.card}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 12, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 8, letterSpacing: 1 }}>🏌️ ハンデマッチ</div>
+        <div style={{ fontSize: 12, color: C.txt, marginBottom: 12, lineHeight: 1.6, padding: "8px 10px", background: `${C.alt}80`, borderRadius: 8 }}>
+          ※ ハンデはスタート後でも変更できます。打順が決まってから設定してもOKです。
+        </div>
 
         {/* Self selector */}
         <div style={{ fontSize: 11, color: C.mut, marginBottom: 6 }}>自分を選択:</div>
@@ -771,10 +779,11 @@ const RANKS = {
   iron: { l: "🔩", c: "#888", p: 1 },
 };
 
-function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oRate, npRate, npCarry, getTeams, vCum, oPts, personal, onScore, onSwap, onPar, onNearpin, onOly, onSettle, onSettings }) {
+function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oRate, npRate, npCarry, handicaps, hcMe, getTeams, vCum, oPts, personal, onScore, onSwap, onPar, onNearpin, onOly, onHandicap, onSettle, onSettings }) {
   const [tab, setTab] = useState("vegas");
   const [half, setHalf] = useState(0);
   const [editH, setEditH] = useState(null);
+  const [showHcEdit, setShowHcEdit] = useState(false);
 
   const hs = half * 9;
   const oAll = oPts();
@@ -789,6 +798,38 @@ function Play({ players, scores, pars, teeOrders, olympic, nearpin, vo, rate, oR
           <h1 style={{ fontSize: 18, fontWeight: 700, color: C.gold, letterSpacing: 2, margin: 0 }}>GOLF SCORER</h1>
           <button style={{ background: C.gold, color: C.bg, border: "none", borderRadius: 8, fontWeight: 700, fontSize: 11, padding: "6px 12px", cursor: "pointer" }} onClick={onSettle}>精算</button>
         </div>
+      </div>
+
+      {/* Handicap Quick Edit */}
+      <div style={{ margin: "8px 12px 0" }}>
+        <button onClick={() => setShowHcEdit(!showHcEdit)}
+          style={{ width: "100%", padding: "6px", borderRadius: 8, border: `1px solid ${C.brd}`, background: showHcEdit ? `${C.gold}15` : "transparent", color: showHcEdit ? C.gold : C.mut, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+          🏌️ ハンデ設定 {showHcEdit ? "▲" : "▼"}
+        </button>
+        {showHcEdit && (
+          <div style={{ ...S.card, marginTop: 6, marginLeft: 0, marginRight: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {players.map((name, i) => {
+                if (i === hcMe) return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
+                    <span style={{ fontSize: 13, color: C.gold, width: 60, flexShrink: 0 }}>⭐ {name}</span>
+                    <span style={{ fontSize: 12, color: C.mut }}>基準</span>
+                  </div>
+                );
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13, color: C.dim, width: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}>{name}</span>
+                    <button onClick={() => onHandicap(i, handicaps[i] - 1)}
+                      style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>−</button>
+                    <div style={{ width: 36, textAlign: "center", fontSize: 18, fontWeight: 700, color: handicaps[i] > 0 ? C.ok : handicaps[i] < 0 ? C.red : C.dim }}>{handicaps[i]}</div>
+                    <button onClick={() => onHandicap(i, handicaps[i] + 1)}
+                      style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${C.brd}`, background: C.alt, color: C.txt, fontSize: 18, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>＋</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Half */}
