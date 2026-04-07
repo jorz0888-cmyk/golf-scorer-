@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-visual" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0a1f0e" />
-    <title>Golf Scorer - Las Vegas & Olympic</title>
+    <title>GOLF SCORER</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <!-- OGP -->
     <meta property="og:title" content="GOLF SCORER" />
     <meta property="og:description" content="ラスベガス・オリンピック・ニアピン・ハンデマッチ対応のゴルフスコア計算アプリ" />
-    <meta property="og:image" content="https://raw.githubusercontent.com/jorz0888-cmyk/golf-scorer-/main/og-image.png" />
+    <meta property="og:image" content="https://golf-scorer-gamma.vercel.app/og-image.png" />
     <meta property="og:type" content="website" />
     <meta name="description" content="ラスベガス・オリンピック・ニアピン・ハンデマッチ対応のゴルフスコア計算アプリ" />
     <style>
@@ -25,5 +28,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
   </body>
 </html>
